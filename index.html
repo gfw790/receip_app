@@ -1,83 +1,51 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>영수증 OCR 테스트</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 700px;
-      margin: 0 auto;
-    }
-    h2 {
-      margin-bottom: 16px;
-    }
-    input, button {
-      margin-top: 10px;
-    }
-    button {
-      padding: 10px 16px;
-      cursor: pointer;
-    }
-    pre {
-      margin-top: 20px;
-      padding: 12px;
-      background: #f4f4f4;
-      border: 1px solid #ddd;
-      white-space: pre-wrap;
-      word-break: break-word;
-      min-height: 120px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>영수증 분석</title>
+<style>
+body { font-family: Arial; padding: 20px; max-width: 700px; margin:auto; }
+textarea { width:100%; height:200px; }
+button { margin-top:10px; padding:10px; }
+pre { background:#f4f4f4; padding:10px; margin-top:20px; }
+</style>
 </head>
 <body>
-  <h2>영수증 OCR 테스트</h2>
 
-  <input type="file" id="fileInput" accept="image/*" />
-  <br />
-  <button id="runBtn">OCR 실행</button>
+<h2>영수증 텍스트 붙여넣기</h2>
 
-  <pre id="result">여기에 결과가 표시됩니다.</pre>
+<textarea id="input"></textarea>
+<br>
+<button onclick="run()">분석</button>
 
-  <script>
-    const fileInput = document.getElementById("fileInput");
-    const runBtn = document.getElementById("runBtn");
-    const result = document.getElementById("result");
+<pre id="result"></pre>
 
-    runBtn.addEventListener("click", async () => {
-      const file = fileInput.files[0];
+<script>
+async function run() {
+    const text = document.getElementById("input").value;
 
-      if (!file) {
-        alert("영수증 사진을 선택하세요.");
+    if (!text.trim()) {
+        alert("텍스트 넣어라");
         return;
-      }
+    }
 
-      result.textContent = "처리 중...";
-
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/ocr", {
-          method: "POST",
-          body: formData
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          result.textContent =
-            "실패\n\n" + JSON.stringify(data, null, 2);
-          return;
-        }
-
-        result.textContent = data.text || "인식된 텍스트가 없습니다.";
-      } catch (error) {
-        result.textContent = "오류 발생: " + error.message;
-      }
+    const res = await fetch("/api/parse", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ text })
     });
-  </script>
+
+    const data = await res.json();
+
+    document.getElementById("result").textContent =
+        "매장명: " + data.storeName + "\n" +
+        "날짜: " + data.date + "\n" +
+        "총액: " + data.totalAmount + "\n\n" +
+        "품목:\n" +
+        data.items.map(i => "- " + i).join("\n") +
+        "\n\n[원문]\n" + data.raw;
+}
+</script>
+
 </body>
 </html>
