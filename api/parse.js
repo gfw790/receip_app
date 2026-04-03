@@ -10,12 +10,21 @@ export default async function handler(req, res) {
     .map(l => l.trim())
     .filter(l => l);
 
-  // 매장명 (첫 줄)
-  const storeName = lines[0] || "";
+  // 매장명 찾기 (롯데리아 같은 키워드 우선)
+  let storeName = "";
 
-  // 날짜 찾기
+  for (const l of lines) {
+    if (l.includes("롯데리아") || l.includes("점")) {
+      storeName = l.replace("(주)", "").trim();
+      break;
+    }
+  }
+
+  if (!storeName) storeName = lines[0];
+
+  // 날짜
   let date = "";
-  const dateRegex = /(\d{4})[./-]\s?(\d{1,2})[./-]\s?(\d{1,2})/;
+  const dateRegex = /(\d{4})[./-](\d{1,2})[./-](\d{1,2})/;
 
   for (const l of lines) {
     const m = l.match(dateRegex);
@@ -25,24 +34,26 @@ export default async function handler(req, res) {
     }
   }
 
-  // 총액 찾기
+  // 총액
   let totalAmount = "";
-  const keywords = ["합계","총액","결제","금액"];
+  const totalKeywords = ["청구액","총합계","결제액"];
 
-  for (const l of lines) {
-    if (keywords.some(k => l.includes(k))) {
-      const nums = l.replace(/,/g,"").match(/\d+/g);
-      if (nums) totalAmount = nums.pop();
+  for (let i = 0; i < lines.length; i++) {
+    if (totalKeywords.some(k => lines[i].includes(k))) {
+      const next = lines[i+1] || "";
+      const num = next.replace(/,/g,"").match(/\d+/);
+      if (num) {
+        totalAmount = num[0];
+        break;
+      }
     }
   }
 
-  // 품목 후보
+  // 품목
   const items = lines.filter(l => {
-    if (l === storeName) return false;
-    if (l.includes(date)) return false;
-    if (keywords.some(k => l.includes(k))) return false;
-    return /\d/.test(l);
-  });
+    if (l.includes("#")) return true;
+    return false;
+  }).map(l => l.replace("#","").trim());
 
   res.status(200).json({
     storeName,
