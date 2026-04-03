@@ -34,32 +34,36 @@ export default async function handler(req, res) {
     }
   }
 
-  // 총액
-  let totalAmount = "";
-  const totalKeywords = ["청구액","총합계","결제액"];
+// 총액 찾기 (개선)
+let totalAmount = "";
+const totalKeywords = ["청구액","총합계","결제액"];
 
-  for (let i = 0; i < lines.length; i++) {
-    if (totalKeywords.some(k => lines[i].includes(k))) {
-      const next = lines[i+1] || "";
-      const num = next.replace(/,/g,"").match(/\d+/);
+for (let i = 0; i < lines.length; i++) {
+  if (totalKeywords.some(k => lines[i].includes(k))) {
+
+    // 다음 3줄 안에서 숫자 찾기
+    for (let j = 1; j <= 3; j++) {
+      const next = lines[i + j] || "";
+      const num = next.replace(/,/g,"").match(/\d{3,}/);
+
       if (num) {
         totalAmount = num[0];
         break;
       }
     }
+
+    if (totalAmount) break;
   }
-
-  // 품목
-  const items = lines.filter(l => {
-    if (l.includes("#")) return true;
-    return false;
-  }).map(l => l.replace("#","").trim());
-
-  res.status(200).json({
-    storeName,
-    date,
-    totalAmount,
-    items,
-    raw: text
-  });
 }
+
+// 품목 (개선)
+const items = lines
+  .filter(l => {
+    if (!l.startsWith("#")) return false;
+
+    // 옵션 제거 (#- 로 시작하면 제외)
+    if (l.startsWith("#-")) return false;
+
+    return true;
+  })
+  .map(l => l.replace("#","").trim());
